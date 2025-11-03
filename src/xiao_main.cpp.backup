@@ -1,0 +1,258 @@
+#include <Arduino.h>
+#include <FastLED.h>
+#include <WiFi.h>
+#include <ArduinoOTA.h>
+
+
+// LED parametry
+#define LED_PIN     9       // Pin D10 (GPIO9) - wyjście danych na diody LED
+#define NUM_LEDS    340     // Liczba diod LED w taśmie
+#define BRIGHTNESS  255    // Jasność
+#define LED_TYPE    WS2811  // Typ LED
+#define COLOR_ORDER RGB     // Kolejność kolorów
+
+
+CRGB leds[NUM_LEDS];
+
+// Przyciski
+const int BUTTON_0_PIN = 8;      // Pin D9 (GPIO8) - przycisk dolny
+const int BUTTON_1_PIN = 7;      // Pin D8 (GPIO7) - przycisk górny
+
+
+bool ledState = LOW;            // Przechowuje stan diody (włączona/wyłączona)
+bool lastButton0State = HIGH;   // Poprzedni stan przycisku 0
+bool lastButton1State = HIGH;   // Poprzedni stan przycisku 1
+
+
+// Funkcja do zapalania diod od dołu
+void lightFromDownstairs() {
+  //(Organiczanie grzania esp) Włącz odświeżanie na czas animacji
+  FastLED.setMaxRefreshRate(100);
+ 
+  for (int i = 0; i < NUM_LEDS; i++) {
+    // Zapal pierwszą diodę na czole animacji
+    leds[i] = CRGB::Green;  
+
+
+    // Ustaw kolory dla poprzednich diod z efektem zanikania
+    for (int j = 1; j <= 20; j++) {  // Obsługujemy do 24 kroków wstecz
+      if (i - j >= 0) {  // Sprawdzamy, czy dioda istnieje
+        if (j <= 10) {  
+          // pierwsza część animacji - przygaszanie
+          leds[i - j] = CRGB(
+            constrain(0, 0, 255),        // R 0
+            constrain(255 - j * 20, 0, 255), // G
+            constrain(0 - j * 20*0, 0, 255)  // B 
+          );
+        } else {
+          // zapalanie
+          leds[i - j] = CRGB(
+            constrain(0 + (j-12) * 10*0, 0, 255),  // R
+            constrain(0 + (j-12) * 10*0, 0, 255),  // G
+            constrain(0 + (j-12) * 10*1, 0, 255)   // B
+          );
+        }
+      }
+    }
+
+
+    // Rozpal diodę za animacją
+    if (i > 21) {
+      leds[i - 20] = CRGB::Blue;  
+    }
+
+
+    // Wyświetl efekt na diodach
+    FastLED.show();
+
+    // utrzymanie OTA także w czasie "czekania"
+    for (int d = 0; d < 10; d++) {
+      ArduinoOTA.handle();
+      delay(1);
+    }
+  }
+  //(Organiczanie grzania esp) Wyłącz odświeżanie po zakończeniu animacji - LED będą świecić autonomicznie
+  FastLED.setMaxRefreshRate(1);
+  ledState = HIGH;  // Dioda pozostaje zapalona
+}
+
+
+
+
+// Funkcja do zapalania diod od góry
+void lightFromUpstairs() {
+  FastLED.setMaxRefreshRate(100);
+
+  // Lecimy od góry w dół, z ogonem poza taśmą
+  for (int i = NUM_LEDS - 1; i >= -20; i--) {
+    // zapal bieżącą diodę (jeśli w zakresie) na niebiesko
+    if (i >= 0 && i < NUM_LEDS) {
+      leds[i] = CRGB::Blue;
+    }
+
+    // ogon (przygaszanie na niebiesko)
+    for (int j = 1; j <= 20; j++) {
+      int idx = i + j;
+      if (idx >= 0 && idx < NUM_LEDS) {
+        if (j <= 10) {
+          // przygaszony niebieski
+          leds[idx] = CRGB(0, 0, constrain(255 - j * 20, 0, 255));
+        } else {
+          // trochę niebieskiego dalej w ogonie
+          leds[idx] = CRGB(0, constrain((j - 12) * 10, 0, 255), 0);
+        }
+      }
+    }
+
+    // czoło animacji – niebieski (tak jak w downstairs)
+    if (i + 20 >= 0 && i + 20 < NUM_LEDS) {
+      leds[i + 20] = CRGB(0, 255, 0);
+    }
+
+  FastLED.show();
+
+    // utrzymanie OTA także w czasie "czekania"
+    for (int d = 0; d < 10; d++) {
+      ArduinoOTA.handle();
+      delay(1);
+    }
+  }
+
+  FastLED.setMaxRefreshRate(1);
+  ledState = HIGH;
+}
+
+
+
+// Funkcja do wyłączania diody
+void turnOffLED() {
+  //(Organiczanie grzania esp) Włącz odświeżanie na moment wysłania komendy wyłączenia
+  FastLED.setMaxRefreshRate(100);
+  FastLED.clear();   // Wyłącz wszystkie diody
+  FastLED.show();    // Wyślij komendę wyłączenia
+ 
+  //(Organiczanie grzania esp) Przywróć normalne odświeżanie dla przyszłych animacji
+  FastLED.setMaxRefreshRate(100);
+  ledState = LOW;    // Zaktualizuj stan diody jako wyłączony
+}
+
+
+void setup() {
+  Serial.begin(115200);
+  delay(2000);
+  Serial.println("=== ESP32 Starting ===");
+  
+  // ### Blok konfiguracji WiFi + OTA ###
+  Serial.println("Creating AP...");
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP("ESP_OTA", "haslo1234");
+  
+  Serial.print("AP created! IP: ");
+  Serial.println(WiFi.softAPIP());
+  Serial.print("MAC: ");
+  Serial.println(WiFi.softAPmacAddress());
+  
+Serial.println("Starting OTA...");
+ArduinoOTA.setPort(3232);
+ArduinoOTA.onStart([]() {
+  Serial.println("OTA Start");
+});
+ArduinoOTA.onEnd([]() {
+  Serial.println("OTA End");  
+});
+
+
+
+
+ArduinoOTA.setTimeout(60000); 
+
+ArduinoOTA.onStart([]() {
+  Serial.println("OTA Start");
+  if (ArduinoOTA.getCommand() == U_FLASH) {
+    Serial.println("Start updating sketch");
+  } else {
+    Serial.println("Start updating filesystem");
+  }
+});
+
+ArduinoOTA.onError([](ota_error_t error) {
+  Serial.printf("Error[%u]: ", error);
+  if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+  else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+  else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+  else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+  else if (error == OTA_END_ERROR) Serial.println("End Failed");
+});
+
+ArduinoOTA.begin();
+
+
+
+
+
+
+
+
+
+  Serial.println("OTA Ready - waiting for connections");
+  Serial.println("========================");
+
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+  Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+
+ // ### LED i przyciski ###
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(BRIGHTNESS);
+  //(Organiczanie grzania esp) Startuj z normalnym odświeżaniem - zostanie zmienione po pierwszej animacji
+  FastLED.setMaxRefreshRate(100);
+
+
+  pinMode(BUTTON_0_PIN, INPUT_PULLUP); // Ustaw pin przycisku jako wejście z podciągnięciem
+  pinMode(BUTTON_1_PIN, INPUT_PULLUP); // Ustaw pin przycisku jako wejście z podciągnięciem
+}
+
+
+void loop() {
+  // OTA musi być w każdej pętli
+  ArduinoOTA.handle();
+  // Sprawdź co 30 sekund status AP
+  static unsigned long lastCheck = 0;
+  if (millis() - lastCheck > 30000) {
+    Serial.printf("AP Status - Connected clients: %d\n", WiFi.softAPgetStationNum());
+    lastCheck = millis();
+  }
+
+  // Odczytujemy stan przycisków
+  bool button0State = digitalRead(BUTTON_0_PIN);
+  bool button1State = digitalRead(BUTTON_1_PIN);
+
+
+  // Obsługa przycisku GPIO8 (D9 - dolny)
+  if (button0State != lastButton0State) {
+    if (ledState == HIGH) {
+      turnOffLED();  // Jeśli dioda jest zapalona, zgaś ją
+    } else {
+      lightFromDownstairs();  // Rozjaśnij diodę i pozostaw zapaloną
+    }
+  }
+
+
+  // Obsługa przycisku GPIO7 (D8 - górny)
+  if (button1State != lastButton1State) {
+    if (ledState == HIGH) {
+      turnOffLED();  // Jeśli dioda jest zapalona, zgaś ją
+    } else {
+      lightFromUpstairs();  // Przyciemnij diodę i pozostaw zapaloną
+    }
+  }
+
+
+  // Zaktualizuj poprzednie stany przycisków
+  lastButton0State = button0State;
+  lastButton1State = button1State;
+
+
+  delay(100); // Proste zabezpieczenie przed drganiami styków (debouncing)
+}
+
