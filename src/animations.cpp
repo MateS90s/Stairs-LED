@@ -164,7 +164,7 @@ void lightFromUpstairsSwitch() {
           //##
       //##    ##
   //##          ##
-void lowEnerguyModeOn() {
+void lowEnergyModeOn() {
   Serial.println("=== SPECIAL FUNCTION - 3x CLICK ===");
   
   FastLED.setMaxRefreshRate(100);
@@ -174,12 +174,14 @@ void lowEnerguyModeOn() {
   FastLED.show();
   delay(300);
   
-  // Faza 1: Środek (120-200)
-  for (int i = 120; i <= 200; i++) {
-    leds[i] = CRGB::Blue;
+  // Faza 1: Płynne rozjaśnianie środka (120–200) przez 1 sekundę
+  for (int brightness = 0; brightness <= 255; brightness += 5) {
+    for (int i = 120; i <= 200; i++) {
+      leds[i] = CRGB(0, 0, brightness);  // rosnąca intensywność niebieskiego
+    }
+    FastLED.show();
+    delay(1000 / (255 / 5));  // ~20 ms na krok → ~1 sekunda łącznie
   }
-  FastLED.show();
-  delay(100);
   
   // Faza 2: Rozszerzenie (80-120 i 200-240)
   for (int i = 80; i < 120; i++) {
@@ -227,55 +229,50 @@ void lowEnerguyModeOn() {
   //##          ##
      //##    ##
         //##
-void lowEnerguyModeOff() {
+void lowEnergyModeOff() {
   Serial.println("=== SPECIAL FUNCTION OFF - WiFi disable ===");
   
   FastLED.setMaxRefreshRate(100);
-  
-  // Faza 1: Gaśnie brzeg (0-40 i 280-340)
-  for (int i = 0; i < 40; i++) {
-    leds[i] = CRGB::Black;
+
+  // Faza 0: Płynne rozjaśnianie wszystkich diod (1 sekunda)
+  for (int brightness = 0; brightness <= 255; brightness += 5) {
+    fill_solid(leds, NUM_LEDS, CRGB(0, 0, brightness));
+    FastLED.show();
+    delay(1000 / (255 / 5));  // ok. 1 sekunda
   }
-  for (int i = 281; i < NUM_LEDS; i++) {
-    leds[i] = CRGB::Black;
-  }
+
+  // Faza 1: Gaśnie brzeg (0–40 i 280–NUM_LEDS)
+  for (int i = 0; i < 40; i++) leds[i] = CRGB::Black;
+  for (int i = 281; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
+  FastLED.show();
+  delay(100);
+
+  // Faza 2: Gaśnie (40–80 i 240–280)
+  for (int i = 40; i < 80; i++) leds[i] = CRGB::Black;
+  for (int i = 241; i <= 280; i++) leds[i] = CRGB::Black;
+  FastLED.show();
+  delay(100);
+ 
+  // Faza 3: Gaśnie (80–120 i 200–240)
+  for (int i = 80; i < 120; i++) leds[i] = CRGB::Black;
+  for (int i = 201; i <= 240; i++) leds[i] = CRGB::Black;
   FastLED.show();
   delay(100);
   
-  // Faza 2: Gaśnie (40-80 i 240-280)
-  for (int i = 40; i < 80; i++) {
-    leds[i] = CRGB::Black;
-  }
-  for (int i = 241; i <= 280; i++) {
-    leds[i] = CRGB::Black;
-  }
+  // Faza 4: Gaśnie środek (120–200)
+  for (int i = 120; i <= 200; i++) leds[i] = CRGB::Black;
   FastLED.show();
   delay(100);
+
   
-  // Faza 3: Gaśnie (80-120 i 200-240)
-  for (int i = 80; i < 120; i++) {
-    leds[i] = CRGB::Black;
-  }
-  for (int i = 201; i <= 240; i++) {
-    leds[i] = CRGB::Black;
-  }
-  FastLED.show();
-  delay(100);
-  
-  // Faza 4: Gaśnie środek (120-200)
-  for (int i = 120; i <= 200; i++) {
-    leds[i] = CRGB::Black;
-  }
-  FastLED.show();
-  delay(100);
-  
-  // Wszystkie zgaszone
+  // 💡 Wszystkie zgaszone — czyszczenie
   FastLED.clear();
   FastLED.show();
-  
+
   FastLED.setMaxRefreshRate(1);
   ledState = LOW;
 }
+
 
 
 

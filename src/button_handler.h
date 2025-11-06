@@ -8,5 +8,6 @@ void handleButtons();
 extern bool ledState;
 extern bool lastButton0State;
 extern bool lastButton1State;
+extern bool lowEnergyMode;
 
 #endif

@@ -6,8 +6,8 @@
 
 void lightFromDownstairsSwitch();
 void lightFromUpstairsSwitch();
-void lowEnerguyModeOn();
-void lowEnerguyModeOff();
+void lowEnergyModeOn();
+void lowEnergyModeOff();
 void turnOffLED();
 
 extern CRGB leds[];

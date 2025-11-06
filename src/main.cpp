@@ -12,7 +12,7 @@ CRGB leds[NUM_LEDS];  // <-- to zostaje tutaj
 bool ledState = LOW;
 bool lastButton0State = HIGH;
 bool lastButton1State = HIGH;
-
+bool lowEnergyMode = false;
 
 void setup() {
 

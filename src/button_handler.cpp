@@ -31,21 +31,31 @@ void handleButtons() {
     lastChangeTime0 = currentTime;
   }
   
-  // Sprawdź czy timeout minął i wykonaj akcję
-  if (changeCount0 > 0 && (currentTime - lastChangeTime0 > MULTI_CHANGE_TIMEOUT)) {
-    if (changeCount0 >= CHANGE_COUNT_FOR_SPECIAL) {
-      lowEnerguyModeOn();
+// Sprawdź czy timeout minął i wykonaj akcję
+if (changeCount0 > 0 && (currentTime - lastChangeTime0 > MULTI_CHANGE_TIMEOUT)) {
+  if (changeCount0 >= CHANGE_COUNT_FOR_SPECIAL) {
+    // Toggle trybu niskiej energii
+    if (lowEnergyMode) {
+      lowEnergyModeOff();  // Wyłącz tryb oszczędzania
+      lowEnergyMode = false;
     } else {
-      // 1 lub 2 zmiany = normalna akcja (toggle)
-      if (ledState == HIGH) {
-        turnOffLED();
-      } else {
-        lightFromDownstairsSwitch();
-      }
+      lowEnergyModeOn();   // Włącz tryb oszczędzania
+      lowEnergyMode = true;
     }
-    changeCount0 = 0;
+  } else {
+    // Normalna akcja - ZAWSZE działa
+    if (ledState == HIGH) {
+      FastLED.clear();
+      FastLED.show();
+      ledState = LOW;
+    } else {
+      lightFromDownstairsSwitch();
+    }
   }
-  
+  changeCount0 = 0;
+}
+
+
   // ===== PRZYCISK 1 (GÓRNY) - prosta obsługa =====
   if (button1State != lastButton1State) {
     if (ledState == HIGH) {
